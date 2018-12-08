@@ -1,0 +1,54 @@
+FROM php:7.1.10-fpm-alpine
+MAINTAINER andy.wang
+
+RUN echo https://mirrors.ustc.edu.cn/alpine/v3.4/main > /etc/apk/repositories; \
+echo https://mirrors.ustc.edu.cn/alpine/v3.4/community >> /etc/apk/repositories
+#update
+RUN apk update \
+    && apk upgrade
+
+#扩展
+RUN apk add --no-cache freetype libpng libjpeg-turbo freetype-dev libpng-dev libjpeg-turbo-dev \
+    && apk add --no-cache --virtual .build-deps autoconf g++ libssh2 openssl openssl-dev make pcre-dev \
+    && apk add --no-cache postgresql-dev libmcrypt-dev \
+    && docker-php-ext-configure gd \
+        --with-gd \
+        --with-freetype-dir=/usr/include/ \
+        --with-png-dir=/usr/include/ \
+        --with-jpeg-dir=/usr/include/ \
+    && docker-php-ext-install gd pdo_mysql opcache bcmath pgsql pdo_pgsql zip mcrypt \
+    #redis
+      && cd /tmp \
+      && wget http://pecl.php.net/get/redis-4.1.1.tgz -O redis-4.1.1.tgz \
+      && pecl install redis-4.1.1.tgz \
+      && rm -rf redis-4.1.1.tgz \
+      && docker-php-ext-enable redis \
+    #xdebug
+    && cd /tmp \
+    && wget http://pecl.php.net/get/xdebug-2.7.0alpha1.tgz -O xdebug-2.7.0alpha1.tgz \
+    && pecl install xdebug-2.7.0alpha1.tgz \
+    && rm -rf xdebug-2.7.0alpha1.tgz \
+    && docker-php-ext-enable xdebug \
+    #mongo
+    && cd /tmp \
+    && wget http://pecl.php.net/get/mongodb-1.6.0alpha1.tgz -O mongodb-1.6.0alpha1.tgz \
+    && pecl install mongodb-1.6.0alpha1.tgz \
+    && rm -rf mongodb-1.6.0alpha1.tgz \
+    && docker-php-ext-enable mongodb \
+    #apcu
+    && cd /tmp \
+    && wget http://pecl.php.net/get/apcu-5.1.14.tgz -O apcu-5.1.14.tgz \
+    && pecl install apcu-5.1.14.tgz \
+    && rm -rf apcu-5.1.14.tgz \
+    && docker-php-ext-enable apcu \
+    && apk del .build-deps \
+    && docker-php-source delete
+
+RUN curl https://getcomposer.org/composer.phar -o /usr/local/bin/composer \
+    && chmod +x /usr/local/bin/composer \
+    && mkdir -p /var/runtime && chmod -R 777 /var/runtime
+
+
+# COPY __cicd__/php/php.ini /usr/local/etc/php/
+# COPY __cicd__/php/www.conf /usr/local/etc/php-fpm.d/
+# docker build -f __cicd__/php/Dockerfile.runtime -t zw0222/php:7.1.10 .
